@@ -1,0 +1,5 @@
+Problem: Google Pay shows CIBIL check option in balance query flow to every user.
+
+Solution: Keep CIBIL score option in the flow for credit card users but create a separate search button or a block for interested debit card users.
+
+Outcome: Better business mandates and user intent balance, building trust in the applications and services provided by the company.
