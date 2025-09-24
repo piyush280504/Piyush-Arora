@@ -1,0 +1,9 @@
+Problem:
+Use of Multiple displays during AI proctored online assessments.
+
+Context:
+Placement assessments must provide a fair chance for every candidate. Finding ways around the system discourages genuine candidates.
+
+Solution:
+Test platform providers must explore system level SDKs to detect second monitor displays as these APIs can easily provide information about the connected devices like Ethernet, Monitor, Microcontrollers etc.
+A lightweight device agent of their own can abstract away COM ports and directly provide information about connected devices.
