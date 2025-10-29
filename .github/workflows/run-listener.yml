@@ -24,4 +24,5 @@ jobs:
         run: pip install boto3
 
       - name: Run script
-        run: python listener.py
+        run: python "Reliable Message Publishing System Using AWS SNS with Cloud Unavailability Simulation.py"
+
