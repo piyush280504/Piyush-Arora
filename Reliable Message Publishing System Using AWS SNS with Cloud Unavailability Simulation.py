@@ -1,10 +1,11 @@
-import boto3
-import json
-import time
-import random
+import os, boto3, json, time, random
 
-sqs = boto3.client('sqs', region_name='ap-south-1')
-queue_url = 'https://sqs.ap-south-1.amazonaws.com/696793786714/MyTestQueue'
+queue_url = os.getenv("SQS_QUEUE_URL")
+if not queue_url:
+    raise ValueError("SQS_QUEUE_URL environment variable not set!")
+
+sqs = boto3.client('sqs', region_name=os.getenv("AWS_REGION", "ap-south-1"))
+
 
 local_buffer = []
 cloud_available = True
