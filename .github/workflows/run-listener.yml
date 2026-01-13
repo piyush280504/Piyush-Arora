@@ -1,4 +1,4 @@
-name: Run SQS Listener
+name: Run Predictive SQS Listener
 
 on:
   workflow_dispatch:
@@ -23,7 +23,11 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install boto3
+        run: |
+          pip install boto3 numpy pandas statsmodels
 
-      - name: Run script
-        run: python "Reliable Message Publishing System Using AWS SNS with Cloud Unavailability Simulation.py"
+      - name: Verify model file
+        run: ls -lh health_arima.pkl
+
+      - name: Run predictive listener
+        run: python aws_predictive_listener.py
