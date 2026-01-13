@@ -1,56 +1,117 @@
-import os, boto3, json, time, random
+import os
+import boto3
+import json
+import time
+import pickle
+import numpy as np
+from collections import deque
 
-queue_url = os.getenv("SQS_QUEUE_URL")
-if not queue_url:
+# =========================
+# CONFIG
+# =========================
+SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL")
+AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
+
+MODEL_PATH = "health_arima.pkl"
+HEALTH_THRESHOLD = 0.6        # below this → cloud unstable
+FORECAST_STEPS = 1
+
+if not SQS_QUEUE_URL:
     raise ValueError("SQS_QUEUE_URL environment variable not set!")
 
-sqs = boto3.client('sqs', region_name=os.getenv("AWS_REGION", "ap-south-1"))
+# =========================
+# LOAD ARIMA MODEL
+# =========================
+with open(MODEL_PATH, "rb") as f:
+    model = pickle.load(f)
 
+print("✅ ARIMA model loaded")
 
-local_buffer = []
-cloud_available = True
-stability_threshold = 0.8
+# =========================
+# AWS CLIENT
+# =========================
+sqs = boto3.client("sqs", region_name=AWS_REGION)
 
-print("Listening for messages and predicting cloud stability...\n")
+# =========================
+# LOCAL BUFFER
+# =========================
+local_buffer = deque(maxlen=1000)
+
+# =========================
+# METRIC WINDOW (simulation-friendly)
+# =========================
+recent_health = deque(maxlen=20)
+
+def predict_cloud_health():
+    """
+    Predict next-step cloud health using ARIMA
+    """
+    if len(recent_health) < 5:
+        return 1.0  # optimistic default during warm-up
+
+    forecast = model.forecast(steps=FORECAST_STEPS)
+    return float(forecast[0])
+
+# =========================
+# MAIN LOOP
+# =========================
+print("🚀 Hybrid Predictive Storage Framework running...\n")
 
 while True:
-    cloud_available = random.random() < stability_threshold
+    # ---------------------------------
+    # SIMULATED METRIC INGESTION
+    # (Replace later with real CloudWatch metrics)
+    # ---------------------------------
+    simulated_health = np.clip(
+        np.random.normal(0.75, 0.05), 0, 1
+    )
+    recent_health.append(simulated_health)
+
+    predicted_health = predict_cloud_health()
+    cloud_available = predicted_health >= HEALTH_THRESHOLD
 
     if not cloud_available:
-        print("⚠️  Cloud instability detected. Switching to local buffering mode...\n")
-        time.sleep(2)
-    
+        print(
+            f"⚠️  Cloud instability predicted "
+            f"(health={predicted_health:.3f}). Switching to local buffering."
+        )
+
+    # ---------------------------------
+    # RECEIVE MESSAGE
+    # ---------------------------------
     response = sqs.receive_message(
-        QueueUrl=queue_url,
+        QueueUrl=SQS_QUEUE_URL,
         MaxNumberOfMessages=1,
         WaitTimeSeconds=10
     )
-    
-    messages = response.get('Messages', [])
+
+    messages = response.get("Messages", [])
+
     for msg in messages:
-        body = json.loads(msg['Body'])
-        message = body['Message']
+        body = json.loads(msg["Body"])
+        message = body.get("Message", body)
+
         print("📩 Received:", message)
 
         if cloud_available:
-            print(f"☁️  Cloud healthy. Processing {message} on cloud server.")
+            print(f"☁️  Processed on cloud: {message}")
         else:
-            print(f"💾 Buffering {message} on local server for now.")
+            print(f"💾 Buffered locally: {message}")
             local_buffer.append(message)
 
         sqs.delete_message(
-            QueueUrl=queue_url,
-            ReceiptHandle=msg['ReceiptHandle']
+            QueueUrl=SQS_QUEUE_URL,
+            ReceiptHandle=msg["ReceiptHandle"]
         )
-        print("✅ Acknowledged message deletion from SQS.\n")
 
+    # ---------------------------------
+    # SYNC BUFFER WHEN STABLE
+    # ---------------------------------
     if cloud_available and local_buffer:
         print("🔄 Cloud stabilized. Syncing buffered messages...")
         while local_buffer:
-            buffered = local_buffer.pop(0)
-            print(f"☁️  Synced {buffered} from local buffer back to cloud.")
-        print("✅ All buffered messages synced.\n")
+            buffered = local_buffer.popleft()
+            print(f"☁️  Synced: {buffered}")
+        print("✅ Buffer cleared")
 
     time.sleep(2)
-
-
