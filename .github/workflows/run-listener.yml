@@ -28,6 +28,9 @@ jobs:
 
       - name: Verify model file
         run: ls -lh health_arima.pkl
+      - name: Show files
+        run: ls -lah
+
 
       - name: Run predictive listener
         run: python aws_predictive_listener.py
